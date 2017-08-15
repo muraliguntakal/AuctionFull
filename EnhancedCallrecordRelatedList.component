@@ -1,0 +1,112 @@
+<!--************************************************************************************
+* Name          :    EnhancedCallrecordRelatedlist
+* Description   :    Sortable,editable and Paginated Related List.(Hardcoded field ids has to be changed on each refresh.)
+* Author        :    Harish Emmadi
+ 
+Modification Log
+----------------
+Date             Developer                Comments
+---------------------------------------------------------------------------------------
+12/05/2013       Harish Emmadi            Created
+*************************************************************************************-->
+<apex:component controller="EnhancedCallrecordRelatedlistCon" allowDML="true">
+    <style>
+        .rlTextarea{
+            height:28px;
+            width:150px;
+        }
+        .Links-next-of-type{
+            margin-left:5px;
+        }
+        .Action-Images{
+            height:20px;
+            width=20px;
+            cursor:pointer;
+            margin-left:20px;
+        }
+    </style>
+    <apex:attribute name="ContactId"  description="recordId of Parent Company of which Product Adoption records to be shown." type="String" required="true" assignTo="{!ParentContactId}"/>
+    <apex:attribute name="noOfrecstobeshown"  description="number of records to be shown in related list per page." type="Integer" required="true" assignTo="{!defaultPgsize}"/>
+    <apex:form >
+        <div style="position:relative;" id="CompleteBlock">
+                <apex:pageBlock title="Call Records" id="CallrecordsPB">
+                        <apex:pageMessages rendered="{!ErrorwithPAList}"/>
+                        <apex:pageMessages id="pgmessages"/>
+                        <apex:pageBlockButtons id="CallreordsPBS" location="top">
+                             <apex:commandButton status="ProceesingStatus" value="Refresh" id="RefreshButton" title="Refresh {!$ObjectType.CallRecord__c.label} records" action="{!Refresh}" rendered="{!NOT(doMassEdit)}" rerender="CallrecordsPB"/>
+                             <apex:commandButton status="ProceesingStatus" value="Edit" id="MassEditButton" title="Edit {!$ObjectType.CallRecord__c.label} records" action="{!doMassEdit}" rendered="{!AND(NOT(doMassEdit),$ObjectType.CallRecord__c.updateable,callrecords.Size > 0)}" rerender="CallrecordsPB"/>
+                             <apex:commandButton status="ProceesingStatus" value="Save" action="{!MassSave}" rendered="{!doMassEdit}" rerender="CallrecordsPB"/>
+                             <apex:commandButton status="ProceesingStatus" value="Cancel" immediate="true" action="{!cancelMassEdit}" rendered="{!doMassEdit}" rerender="CallrecordsPB"/>
+                        </apex:pageBlockButtons>
+                        <apex:outputpanel >
+                            <apex:actionstatus id="ProceesingStatus">
+                                <apex:facet name="start">
+                                    <div class="waitingSearchDiv" id="el_loading" style="background-color: #fbfbfb;
+                                           height: 100%;opacity:0.65;width:100%;"> 
+                                        <div class="waitingHolder" style="top: 74.2px; width: 91px;">
+                                            <img class="waitingImage" src="/img/loading.gif" title="Please Wait..." />
+                                            <span class="waitingDescription">Loading...</span>
+                                        </div>
+                                    </div>
+                                </apex:facet>
+                            </apex:actionstatus>
+                        </apex:outputpanel>
+                        <apex:pageBlockTable value="{!callrecords}" var="CR" id="callrecordstable" columns="8" rendered="{!callrecords.size > 0}">
+                            <apex:column headervalue="{!$ObjectType.CallRecord__c.fields.Name.label}">
+                                <apex:outputLink value="{!URLFOR($Action.CallRecord__c.View,CR.Id)}">{!CR.Name}</apex:outputLink>
+                            </apex:column>    
+                            <apex:column headervalue="{!$ObjectType.CallRecord__c.fields.FollowupTime__c.label}">
+                                <apex:outputField value="{!CR.FollowupTime__c}" rendered="{!NOT(doMassEdit)}"/>
+                                <apex:inputField value="{!CR.FollowupTime__c}" rendered="{!doMassEdit}"/>
+                            </apex:column>
+                            <apex:column headervalue="{!$ObjectType.CallRecord__c.fields.Calldisposition__c.label}">
+                                <apex:outputField value="{!CR.Calldisposition__c}" rendered="{!NOT(doMassEdit)}"/>
+                                <apex:inputField value="{!CR.Calldisposition__c}" rendered="{!doMassEdit}"/>
+                            </apex:column>
+                            <apex:column headervalue="{!$ObjectType.CallRecord__c.fields.Bid__c.label}">
+                                <apex:outputField value="{!CR.Bid__c}" rendered="{!NOT(doMassEdit)}"/>
+                                <apex:inputField value="{!CR.Bid__c}" rendered="{!doMassEdit}"/>
+                            </apex:column>
+<!-- Murali Guntakal - 2/18/14 - Based on Review Comments
+                            <apex:column headervalue="{!$ObjectType.CallRecord__c.fields.Opportunity__c.label}" >
+                                <apex:outputField value="{!CR.Opportunity__c}" rendered="{!NOT(doMassEdit)}"/>
+                                <apex:inputField value="{!CR.Opportunity__c}" rendered="{!doMassEdit}"/>
+                            </apex:column>
+-->
+                            <apex:column headervalue="{!$ObjectType.CallRecord__c.fields.Notes__c.label}" >
+                                <apex:outputField value="{!CR.Notes__c}" rendered="{!NOT(doMassEdit)}"/>
+                                <apex:inputTextarea value="{!CR.Notes__c}" rendered="{!doMassEdit}" rows="2" style="width:160px;height:25px;"/>
+                            </apex:column>
+                            <apex:column headervalue="{!$ObjectType.CallRecord__c.fields.Winning_Bid_Call__c.label}" rendered="{!NOT(doMassEdit)}" >
+                                <apex:outputField value="{!CR.Winning_Bid_Call__c}" rendered="{!NOT(doMassEdit)}"/>
+                            </apex:column>
+
+                        </apex:pageBlockTable>
+                        <center><strong> <apex:pageMessage rendered="{!callrecords.size <= 0}" summary="{!IF(ParentContactId != null, 'No follow-up call records for selected contact.','select contact to see related follow-up call records.')}" severity="info" strength="1" /></strong></center>
+                        <apex:panelGrid columns="16" id="LinksPanel" rendered = "{!callrecords.size > 0 && NOT(doMassEdit)}">
+                            <apex:commandLink immediate="true" action="{!first}" status="fetchStatus" value="<< First" rerender="callrecordstable,LinksPanel,pgmessages" rendered="{!hasPrevious}"/>
+                            <apex:outputText rendered="{!NOT(hasPrevious)}" value="<< First"/>
+                            
+                            <apex:outputPanel > | </apex:outputPanel>
+                            <apex:commandLink immediate="true" action="{!previous}" status="fetchStatus" rendered="{!hasPrevious}" value="< Previous" rerender="callrecordstable,LinksPanel,pgmessages" />
+                            <apex:outputText rendered="{!NOT(hasPrevious)}" value="< Previous"/>
+
+                            <apex:outputPanel > | </apex:outputPanel>
+                            <apex:commandLink immediate="true" action="{!next}" status="fetchStatus" rendered="{!hasNext}" value="Next >" rerender="callrecordstable,LinksPanel,pgmessages" />
+                            <apex:outputText rendered="{!NOT(hasNext)}" value="Next >" />
+
+                            <apex:outputPanel > | </apex:outputPanel>
+                            <apex:commandLink immediate="true" action="{!last}" status="fetchStatus" value="Last >>" rerender="callrecordstable,LinksPanel,pgmessages" rendered="{!hasNext}"/>
+                            <apex:outputText rendered="{!NOT(hasNext)}" value="Last >>" />
+                            
+                            &nbsp;&nbsp;<apex:outputtext >{!(pageNumber * PageSize)+1-PageSize}-{!IF((pageNumber * PageSize)>noOfRecords, noOfRecords,(pageNumber * PageSize))} of {!noOfRecords}</apex:outputtext>
+                            <apex:actionStatus id="fetchStatus">
+                               <apex:facet name="start">
+                                    <img src="/apexpages/devmode/img/saveStatus.gif" border="0"/>
+                               </apex:facet>
+                            </apex:actionStatus>
+                        </apex:panelGrid>
+                 </apex:pageBlock>
+           </div>
+    </apex:form>        
+</apex:component>

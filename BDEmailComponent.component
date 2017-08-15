@@ -1,0 +1,3 @@
+<apex:component controller="BDEmailComponentController" access="global">
+    <strong><apex:outputText escape="false" value="{!bio}"/></strong>
+</apex:component>
